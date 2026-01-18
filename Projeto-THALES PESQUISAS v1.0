@@ -1,0 +1,121 @@
+import pyaudio
+import wave
+import whisper
+import os
+import pyttsx3
+import time
+from groq import Groq
+
+# ==========================================================
+# 🔑 CONFIGURAÇÃO: Insira sua chave da Groq abaixo
+# ==========================================================
+CHAVE_GROQ = "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"
+client = Groq(api_key=CHAVE_GROQ) 
+WAVE_INPUT_FILENAME = "audio_pergunta.wav"
+
+# Pré-carregamento do modelo para evitar lentidão
+print("[ SISTEMA ] Carregando motor Whisper...")
+model_whisper = whisper.load_model("base")
+
+def limpar_tela():
+    os.system('cls' if os.name == 'nt' else 'clear')
+
+def mostrar_logo():
+    limpar_tela()
+    logo = r"""
+    ##########################################################
+    #                                                        #
+    #    _______ _    _          _      ______  _____        #
+    #   |__   __| |  | |   /\   | |    |  ____|/ ____|       #
+    #      | |  | |__| |  /  \  | |    | |__  | (___         #
+    #      | |  |  __  | / /\ \ | |    |  __|  \___ \        #
+    #      | |  | |  | |/ ____ \| |____| |____ ____) |       #
+    #      |_|  |_|  |_/_/    \_\______|______|_____/        #
+    #                                                        #
+    #             THALES PESQUISAS v1.0                      #
+    ##########################################################
+    """
+    print(logo)
+
+def gravar_audio(segundos=6):
+    p = pyaudio.PyAudio()
+    stream = p.open(format=pyaudio.paInt16, channels=1, rate=44100, input=True, frames_per_buffer=1024)
+    
+    print(f"\n[ ESCUTANDO ] 🎙️  Pode falar...")
+    
+    frames = []
+    total_chunks = int(44100 / 1024 * segundos)
+    
+    for i in range(total_chunks):
+        data = stream.read(1024)
+        frames.append(data)
+        percentual = int((i / total_chunks) * 100)
+        if i % 5 == 0:
+            print(f"\r[ GRAVANDO ] PROGRESSO: {percentual}% [{'█' * (percentual // 5)}{'-' * (20 - percentual // 5)}]", end="")
+            
+    print(f"\r[ GRAVANDO ] PROGRESSO: 100% [{'█' * 20}]")
+    stream.stop_stream()
+    stream.close()
+    p.terminate()
+
+    # Salvando o arquivo de áudio (Área onde o erro ocorria)
+    with wave.open(WAVE_INPUT_FILENAME, 'wb') as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(p.get_sample_size(pyaudio.paInt16))
+        wf.setframerate(44100)
+        wf.writeframes(b''.join(frames))
+
+def falar_texto(texto):
+    engine = pyttsx3.init()
+    voices = engine.getProperty('voices')
+    engine.setProperty('voice', voices[0].id) 
+    engine.setProperty('rate', 185)
+    
+    limpar_tela()
+    mostrar_logo()
+    print("\n" + "═"*60)
+    print(" 🤖 RESPOSTA DA PESQUISA:")
+    print("─" * 60)
+    print(texto)
+    print("═"*60 + "\n")
+    
+    engine.say(texto)
+    engine.runAndWait()
+
+def main():
+    while True:
+        mostrar_logo()
+        print("\nPronto para pesquisar?")
+        entrada = input(">>> Aperte [ENTER] para falar ou [S] para sair: ").lower()
+        
+        if entrada == 's':
+            print("\nEncerrando Thales Pesquisas... Até logo!")
+            break
+            
+        gravar_audio(6)
+        
+        print("\n[ WHISPER ] Processando fala...")
+        result = model_whisper.transcribe(WAVE_INPUT_FILENAME, fp16=False)
+        pergunta = result["text"].strip()
+        
+        if not pergunta:
+            print("\n[!] Áudio vazio detectado.")
+            time.sleep(2)
+            continue
+            
+        print(f"[ GROQ ] Consultando IA...")
+        try:
+            response = client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[{"role": "user", "content": pergunta}]
+            )
+            resposta = response.choices[0].message.content
+            falar_texto(resposta)
+            input("Pressione [ENTER] para nova busca...")
+            
+        except Exception as e:
+            print(f"\n[ ERRO ] Detalhes: {e}")
+            input("\nPressione [ENTER] para voltar...")
+
+if __name__ == "__main__":
+    main()
