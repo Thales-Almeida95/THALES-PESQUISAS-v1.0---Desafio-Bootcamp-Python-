@@ -43,7 +43,7 @@ Obtenha sua chave de API gratuita no console da Groq Cloud.
 Abra o arquivo principal e insira sua chave na variável:
 
 Python
-CHAVE_GROQ = "sua_chave_gsk_aqui"
+CHAVE_GROQ = "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"
 Execute o script:
 
 PowerShell
