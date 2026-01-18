@@ -6,9 +6,7 @@ import pyttsx3
 import time
 from groq import Groq
 
-# ==========================================================
-# 🔑 CONFIGURAÇÃO: Insira sua chave da Groq abaixo
-# ==========================================================
+
 CHAVE_GROQ = "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"
 client = Groq(api_key=CHAVE_GROQ) 
 WAVE_INPUT_FILENAME = "audio_pergunta.wav"
